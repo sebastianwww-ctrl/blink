@@ -2,7 +2,6 @@ name: Build Blink Shell IPA
 on:
   push:
     branches: [main]
-
 jobs:
   build:
     runs-on: macos-latest
@@ -14,6 +13,14 @@ jobs:
         uses: fwal/setup-swift@v2
         with:
           swift-version: '5.9'
+
+      - name: Check for Podfile
+        run: |
+          if [ -f Podfile ]; then
+            echo "Podfile exists, proceeding..."
+          else
+            echo "No Podfile detected"
+          fi
 
       - name: Build IPA
         run: xcodebuild -scheme BlinkShell -sdk iphoneos -configuration Release archive -archivePath ${{ github.workspace }}/Build/BlinkShell.xcarchive
