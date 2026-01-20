@@ -1,56 +1,52 @@
-name: CI
+# Language: YAML for GitHub Actions
+name: Build Unsigned IPA
 
-on: [push]
+on:
+  workflow_dispatch:  # Manual trigger
+  push:
+    branches:
+      - main
 
 jobs:
-  build:
-
-    runs-on: macOS-latest
-    #runs-on: macos-13
+  build-ipa:
+    name: Build Unsigned IPA
+    runs-on: macos-latest
 
     steps:
-    # - uses: swift-actions/setup-swift@v1
-    - uses: actions/checkout@v2
-      with:
-        submodules: true
+      # Step 1: Clone the repository
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    - name: switch xcode
-      run: sudo xcode-select -s '/Applications/Xcode_15.0.app/Contents/Developer'
+      # Step 2: Install dependencies if needed (e.g., CocoaPods)
+      - name: Install CocoaPods dependencies
+        if: exists('Podfile')
+        run: |
+          sudo gem install cocoapods
+          pod install
 
-    - name: use cache
-      id: cache
-      uses: actions/cache@v2
-      with:
-        path: |
-          xcfs/.build
-          Frameworks/ios_system/xcfs/.build
-        key: ${{ runner.os }}-${{ hashFiles('get_frameworks.sh', 'xcfs/Package.swift') }}
+      # Step 3: Build the unsigned IPA
+      - name: Build IPA
+        run: |
+          xcodebuild -workspace BlinkShell.xcworkspace \
+                     -scheme BlinkShell \
+                     -configuration Release \
+                     -sdk iphoneos \
+                     -archivePath $PWD/build/BlinkShell.xcarchive archive
+          
+          xcodebuild -exportArchive \
+                     -archivePath $PWD/build/BlinkShell.xcarchive \
+                     -exportPath $PWD/build/ \
+                     -exportOptionsPlist <(echo '{
+                       "method": "development",
+                       "signingStyle": "manual",
+                       "compileBitcode": false,
+                       "embedOnDemandResourcesAssetPacksInBundle": false,
+                       "provisioningProfiles": {}
+                     }')
 
-    - name: get frameworks
-      if: steps.cache.outputs.cache-hit != 'true'
-      run: ./get_frameworks.sh
-
-    - name: get resources
-      if: steps.cache.outputs.cache-hit != 'true'
-      run: ./get_resources.sh
-
-    - name: copy xcconfig
-      run: cp template_setup.xcconfig developer_setup.xcconfig
-
-    - name: BlinkTests
-      run: xcodebuild -project Blink.xcodeproj -scheme BlinkTests -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPad Air (5th generation)' test | xcpretty
-
-    # - name: actual build
-    #   run: set -o pipefail && xcodebuild archive -project Blink.xcodeproj -scheme Blink -sdk iphoneos -configuration Debug clean build IPHONEOS_DEPLOYMENT_TARGET='16.1' CODE_SIGN_IDENTITY='' CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=NO | tee build.log | xcpretty
-
-    # - name: generate unsigned debug ipa
-    #   run: |
-    #     cd ~
-    #     mkdir Payload
-    #     mv ~/Library/Developer/Xcode/Archives/*/*/Products/Applications/Blink.app ~/Payload/
-    #     zip -r Blink.ipa Payload
-    # - name: upload ipa
-    #   uses: actions/upload-artifact@v2.2.0
-    #   with:
-    #     name: 'BlinkShell'
-    #     path: ~/Blink.ipa
+      # Step 4: Upload the unsigned IPA for download
+      - name: Upload IPA
+        uses: actions/upload-artifact@v3
+        with:
+          name: BlinkShell-unsigned
+          path: build/BlinkShell.ipa
