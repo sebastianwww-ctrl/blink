@@ -1,52 +1,19 @@
-# Language: YAML for GitHub Actions
-name: Build Unsigned IPA
-
+name: Build Blink Shell IPA
 on:
-  workflow_dispatch:  # Manual trigger
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
-  build-ipa:
-    name: Build Unsigned IPA
+  build:
     runs-on: macos-latest
-
     steps:
-      # Step 1: Clone the repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Step 2: Install dependencies if needed (e.g., CocoaPods)
-      - name: Install CocoaPods dependencies
-        if: exists('Podfile')
-        run: |
-          sudo gem install cocoapods
-          pod install
-
-      # Step 3: Build the unsigned IPA
-      - name: Build IPA
-        run: |
-          xcodebuild -workspace BlinkShell.xcworkspace \
-                     -scheme BlinkShell \
-                     -configuration Release \
-                     -sdk iphoneos \
-                     -archivePath $PWD/build/BlinkShell.xcarchive archive
-          
-          xcodebuild -exportArchive \
-                     -archivePath $PWD/build/BlinkShell.xcarchive \
-                     -exportPath $PWD/build/ \
-                     -exportOptionsPlist <(echo '{
-                       "method": "development",
-                       "signingStyle": "manual",
-                       "compileBitcode": false,
-                       "embedOnDemandResourcesAssetPacksInBundle": false,
-                       "provisioningProfiles": {}
-                     }')
-
-      # Step 4: Upload the unsigned IPA for download
-      - name: Upload IPA
-        uses: actions/upload-artifact@v3
+      - name: Set up Swift
+        uses: fwal/setup-swift@v2
         with:
-          name: BlinkShell-unsigned
-          path: build/BlinkShell.ipa
+          swift-version: '5.9'
+
+      - name: Build IPA
+        run: xcodebuild -scheme BlinkShell -sdk iphoneos -configuration Release archive -archivePath ${{ github.workspace }}/Build/BlinkShell.xcarchive
