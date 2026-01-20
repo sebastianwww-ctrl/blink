@@ -1,5 +1,5 @@
 # Language: YAML
-name: Build and Test
+name: CI Build
 
 on:
   push:
@@ -9,37 +9,33 @@ on:
 
 jobs:
   build:
+    name: Build and Test
     runs-on: ubuntu-latest
 
     steps:
-      # Checkout the code
-      - name: Checkout repository
+      # Step 1: Checkout the repository
+      - name: Checkout Repository
         uses: actions/checkout@v3
 
-      # Setup Ruby (example) for Podfile use case
-      - name: Setup Ruby
-        uses: ruby/setup-ruby@v1
+      # Step 2: Set up Node.js (example for a Node.js project)
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          ruby-version: '3.1'
+          node-version: '18'
 
-      # Example: Check if Podfile exists using a shell command
-      - name: Check Podfile exists
-        run: |
-          if [ -f "Podfile" ]; then
-            echo "Podfile exists"
-          else
-            echo "Podfile not found"
-          fi
+      # Step 3: Install dependencies
+      - name: Install Dependencies
+        run: npm install
 
-      # Use environment variables correctly
-      - name: Print environment variable
-        env:
-          MY_VAR: HelloWorld
-        run: echo ${{ env.MY_VAR }}
+      # Step 4: Run tests
+      - name: Run Tests
+        run: npm test
 
-      # Run tests or other commands
-      - name: Run tests
-        run: |
-          echo "Running tests..."
-          # Example test command: replace with your real test command
-          echo "Tests completed."
+      # Step 5: Build project (if applicable)
+      - name: Build Project
+        run: npm run build
+
+      # Step 6: Conditional step example (avoiding unrecognized 'e' errors)
+      - name: Deploy if on main branch
+        if: github.ref == 'refs/heads/main'
+        run: echo "Deploying application..."
