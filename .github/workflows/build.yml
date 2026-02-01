@@ -1,4 +1,4 @@
-name: Build Blink Shell Custom
+name: Build Blink Shell GPL
 on:
   workflow_dispatch:
 
@@ -9,18 +9,16 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          submodules: recursive # Fetches SSH and Mosh dependencies
+          submodules: recursive
 
       - name: Setup Dependencies
         run: |
           chmod +x ./get_frameworks.sh ./get_resources.sh
-          # We add '|| true' so the build continues even if a minor resource fails
-          ./get_frameworks.sh || true
-          ./get_resources.sh || true
+          ./get_frameworks.sh
+          ./get_resources.sh
 
-      - name: Build App
+      - name: Build Archive
         run: |
-          # We use 'archive' instead of 'build'—it's more reliable for finding the app later
           xcodebuild archive \
             -project Blink.xcodeproj \
             -scheme Blink \
@@ -29,11 +27,19 @@ jobs:
             -archivePath ./Blink.xcarchive \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY=""
+            CODE_SIGN_IDENTITY="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            COMPILER_INDEX_STORE_ENABLE=NO
 
-      - name: Create IPA
+      - name: Create IPA Structure
         run: |
           mkdir -p Payload
-          # This specifically looks inside the Archive we just created
-          cp -r ./Blink.xcarchive/Products/Applications/Blink.app Payload/
+          # Moving the compiled app into the Payload folder
+          cp -r ./Blink.xcarchive/Products/Applications/*.app Payload/
           zip -r Blink.ipa Payload
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Blink-Final-IPA
+          path: Blink.ipa
