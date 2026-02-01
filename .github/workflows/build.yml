@@ -1,6 +1,6 @@
 name: Build Blink Shell
 on:
-  workflow_dispatch: # Allows you to manually trigger the build
+  workflow_dispatch:
 
 jobs:
   build:
@@ -9,41 +9,37 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          submodules: recursive # CRITICAL: Pulls in SSH, Mosh, and OpenSSL
+          submodules: recursive
 
       - name: Setup Frameworks & Resources
         run: |
           chmod +x ./get_frameworks.sh ./get_resources.sh
           ./get_frameworks.sh
-          ./get_resources.sh # Downloads low-level dependencies
+          ./get_resources.sh
 
       - name: Configure Signing
         run: |
           cp template_setup.xcconfig developer_setup.xcconfig
-          # Using a placeholder ID since you'll re-sign with SideStore anyway
           sed -i '' 's/YOUR_DEVELOPER_ID/XYZ1234567/g' developer_setup.xcconfig
 
-      - name: Build IPA
+      - name: Build App
         run: |
           xcodebuild -project Blink.xcodeproj \
             -scheme Blink \
             -configuration Release \
             -sdk iphoneos \
-            -allowProvisioningUpdates \
-            build-for-testing \
-            CODE_SIGNING_ALLOWED=NO | xcpretty # Build without local certs
+            -derivedDataPath ./build_output \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
 
-      -      - name: Archive and Export
+      - name: Create IPA
         run: |
           mkdir -p Payload
-          # This finds the actual .app bundle and puts it into a Payload folder
-          find . -name "Blink.app" -type d -exec cp -r {} Payload/ \;
-          # Zip it into a proper IPA format
+          find ./build_output -name "Blink.app" -type d -exec cp -r {} Payload/ \;
           zip -r Blink.ipa Payload
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Blink-Shell-Custom-IPA
+          name: Blink-Custom-Build
           path: Blink.ipa
-          if-no-files-found: error # This will tell us immediately if it failed to find it
