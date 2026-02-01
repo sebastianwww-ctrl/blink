@@ -1,4 +1,4 @@
-name: Build Blink Shell
+name: Build Blink Shell Custom
 on:
   workflow_dispatch:
 
@@ -9,32 +9,27 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: recursive # Fetches SSH and Mosh dependencies
 
-      - name: Setup Frameworks & Resources
+      - name: Setup Dependencies
         run: |
           chmod +x ./get_frameworks.sh ./get_resources.sh
           ./get_frameworks.sh
           ./get_resources.sh
 
-      - name: Configure Signing
-        run: |
-          cp template_setup.xcconfig developer_setup.xcconfig
-          sed -i '' 's/YOUR_DEVELOPER_ID/XYZ1234567/g' developer_setup.xcconfig
-
-      - name: Build App
+      - name: Force Build Unsigned
         run: |
           xcodebuild -project Blink.xcodeproj \
             -scheme Blink \
             -configuration Release \
             -sdk iphoneos \
             -derivedDataPath ./build_output \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
             AD_HOC_CODE_SIGNING_ALLOWED=YES \
-            COMPILER_INDEX_STORE_ENABLE=NO
-
+            BITCODE_GENERATION_MODE=bitcode \
+            COMPILER_INDEX_STORE_ENABLE=NO | xcpretty
 
       - name: Create IPA
         run: |
@@ -42,8 +37,8 @@ jobs:
           find ./build_output -name "Blink.app" -type d -exec cp -r {} Payload/ \;
           zip -r Blink.ipa Payload
 
-      - name: Upload Artifact
+      - name: Upload Finished IPA
         uses: actions/upload-artifact@v4
         with:
-          name: Blink-Custom-Build
+          name: Blink-Sideload-Me
           path: Blink.ipa
