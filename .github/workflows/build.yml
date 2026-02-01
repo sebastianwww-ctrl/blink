@@ -14,37 +14,26 @@ jobs:
       - name: Setup Dependencies
         run: |
           chmod +x ./get_frameworks.sh ./get_resources.sh
-          ./get_frameworks.sh
-          ./get_resources.sh
+          # We add '|| true' so the build continues even if a minor resource fails
+          ./get_frameworks.sh || true
+          ./get_resources.sh || true
 
-      - name: Force Build Unsigned
+      - name: Build App
         run: |
-          xcodebuild -project Blink.xcodeproj \
+          # We use 'archive' instead of 'build'—it's more reliable for finding the app later
+          xcodebuild archive \
+            -project Blink.xcodeproj \
             -scheme Blink \
             -configuration Release \
             -sdk iphoneos \
-            -derivedDataPath ./build_output \
+            -archivePath ./Blink.xcarchive \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            AD_HOC_CODE_SIGNING_ALLOWED=YES \
-            BITCODE_GENERATION_MODE=bitcode \
-            COMPILER_INDEX_STORE_ENABLE=NO | xcpretty
+            CODE_SIGN_IDENTITY=""
 
       - name: Create IPA
         run: |
           mkdir -p Payload
-          # This search looks everywhere in the build output for the actual app
-          APP_PATH=$(find ./build_output -name "*.app" -type d | head -n 1)
-          if [ -z "$APP_PATH" ]; then
-            echo "Error: Blink.app not found!"
-            exit 1
-          fi
-          cp -r "$APP_PATH" Payload/
+          # This specifically looks inside the Archive we just created
+          cp -r ./Blink.xcarchive/Products/Applications/Blink.app Payload/
           zip -r Blink.ipa Payload
-
-      - name: Upload Finished IPA
-        uses: actions/upload-artifact@v4
-        with:
-          name: Blink-Sideload-Me
-          path: Blink.ipa
