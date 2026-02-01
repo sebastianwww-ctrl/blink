@@ -1,4 +1,5 @@
-name: Build Blink Shell Force
+name: Build Blink
+
 on:
   workflow_dispatch:
 
@@ -17,35 +18,30 @@ jobs:
           ./get_frameworks.sh
           ./get_resources.sh
 
-      - name: Strip Signing Requirements
-        run: |
-          # This command removes the "Team" requirement from the project file
-          sed -i '' 's/PROVISIONING_PROFILE_SPECIFIER = .*;//g' Blink.xcodeproj/project.pbxproj
-          sed -i '' 's/DEVELOPMENT_TEAM = .*;//g' Blink.xcodeproj/project.pbxproj
-          sed -i '' 's/CODE_SIGN_STYLE = Automatic;//g' Blink.xcodeproj/project.pbxproj
-
-      - name: Build Unsigned
+      - name: Build App
         run: |
           xcodebuild build \
             -project Blink.xcodeproj \
             -scheme Blink \
             -configuration Debug \
             -sdk iphoneos \
-            -derivedDataPath ./build_output \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            AD_HOC_CODE_SIGNING_ALLOWED=YES \
-            COMPILER_INDEX_STORE_ENABLE=NO
+            -derivedDataPath ./build_output
 
-      - name: Create IPA
+      - name: Archive App
         run: |
-          mkdir -p Payload
-          find ./build_output -name "*.app" -type d -exec cp -r {} Payload/ \;
-          zip -r Blink.ipa Payload
+          # This command archives the built application, which is a standard step
+          # for preparing an app. The output will be a .xcarchive file,
+          # which contains the app bundle and debugging symbols.
+          xcodebuild archive \
+            -project Blink.xcodeproj \
+            -scheme Blink \
+            -configuration Debug \
+            -sdk iphoneos \
+            -derivedDataPath ./build_output \
+            -archivePath ./build_output/Blink.xcarchive
 
-      - name: Upload Artifact
+      - name: Upload Archive Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Blink-Final-Attempt
-          path: Blink.ipa
+          name: Blink-Archive
+          path: ./build_output/Blink.xcarchive
