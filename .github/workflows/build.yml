@@ -1,41 +1,46 @@
-# Language: YAML
-name: CI Build
-
+name: Build Blink Shell
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch: # Allows you to manually trigger the build
 
 jobs:
   build:
-    name: Build and Test
-    runs-on: ubuntu-latest
-
+    runs-on: macos-latest
     steps:
-      # Step 1: Checkout the repository
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-
-      # Step 2: Set up Node.js (example for a Node.js project)
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      - name: Checkout Code
+        uses: actions/checkout@v4
         with:
-          node-version: '18'
+          submodules: recursive # CRITICAL: Pulls in SSH, Mosh, and OpenSSL
 
-      # Step 3: Install dependencies
-      - name: Install Dependencies
-        run: npm install
+      - name: Setup Frameworks & Resources
+        run: |
+          chmod +x ./get_frameworks.sh ./get_resources.sh
+          ./get_frameworks.sh
+          ./get_resources.sh # Downloads low-level dependencies
 
-      # Step 4: Run tests
-      - name: Run Tests
-        run: npm test
+      - name: Configure Signing
+        run: |
+          cp template_setup.xcconfig developer_setup.xcconfig
+          # Using a placeholder ID since you'll re-sign with SideStore anyway
+          sed -i '' 's/YOUR_DEVELOPER_ID/XYZ1234567/g' developer_setup.xcconfig
 
-      # Step 5: Build project (if applicable)
-      - name: Build Project
-        run: npm run build
+      - name: Build IPA
+        run: |
+          xcodebuild -project Blink.xcodeproj \
+            -scheme Blink \
+            -configuration Release \
+            -sdk iphoneos \
+            -allowProvisioningUpdates \
+            build-for-testing \
+            CODE_SIGNING_ALLOWED=NO | xcpretty # Build without local certs
 
-      # Step 6: Conditional step example (avoiding unrecognized 'e' errors)
-      - name: Deploy if on main branch
-        if: github.ref == 'refs/heads/main'
-        run: echo "Deploying application..."
+      - name: Archive and Export
+        run: |
+          mkdir build_artifacts
+          # This creates a folder to hold your finished app
+          find . -name "*.app" -exec cp -r {} ./build_artifacts/ \;
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BlinkShell-Unsigned-IPA
+          path: build_artifacts/
