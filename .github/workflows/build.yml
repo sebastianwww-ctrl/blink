@@ -1,4 +1,4 @@
-name: Build Blink Shell Debug
+name: Build Blink Shell Force
 on:
   workflow_dispatch:
 
@@ -17,9 +17,15 @@ jobs:
           ./get_frameworks.sh
           ./get_resources.sh
 
-      - name: Build Debug App
+      - name: Strip Signing Requirements
         run: |
-          # We use 'build' in 'Debug' mode to bypass Code 74
+          # This command removes the "Team" requirement from the project file
+          sed -i '' 's/PROVISIONING_PROFILE_SPECIFIER = .*;//g' Blink.xcodeproj/project.pbxproj
+          sed -i '' 's/DEVELOPMENT_TEAM = .*;//g' Blink.xcodeproj/project.pbxproj
+          sed -i '' 's/CODE_SIGN_STYLE = Automatic;//g' Blink.xcodeproj/project.pbxproj
+
+      - name: Build Unsigned
+        run: |
           xcodebuild build \
             -project Blink.xcodeproj \
             -scheme Blink \
@@ -29,17 +35,17 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            AD_HOC_CODE_SIGNING_ALLOWED=YES
+            AD_HOC_CODE_SIGNING_ALLOWED=YES \
+            COMPILER_INDEX_STORE_ENABLE=NO
 
-      - name: Create IPA Structure
+      - name: Create IPA
         run: |
           mkdir -p Payload
-          # This finds the compiled .app even in messy Debug folders
           find ./build_output -name "*.app" -type d -exec cp -r {} Payload/ \;
           zip -r Blink.ipa Payload
 
-      - name: Upload Finished IPA
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Blink-Debug-IPA
+          name: Blink-Final-Attempt
           path: Blink.ipa
