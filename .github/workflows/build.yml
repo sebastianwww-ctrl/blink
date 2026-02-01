@@ -34,7 +34,13 @@ jobs:
       - name: Create IPA
         run: |
           mkdir -p Payload
-          find ./build_output -name "Blink.app" -type d -exec cp -r {} Payload/ \;
+          # This search looks everywhere in the build output for the actual app
+          APP_PATH=$(find ./build_output -name "*.app" -type d | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "Error: Blink.app not found!"
+            exit 1
+          fi
+          cp -r "$APP_PATH" Payload/
           zip -r Blink.ipa Payload
 
       - name: Upload Finished IPA
