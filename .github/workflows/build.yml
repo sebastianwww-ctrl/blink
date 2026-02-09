@@ -1,47 +1,24 @@
-name: Build Blink
-
-on:
-  workflow_dispatch:
+name: Build Blink IPA
+on: [workflow_dispatch] # This lets you start the build manually
 
 jobs:
   build:
     runs-on: macos-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
+      - uses: actions/checkout@v4
+      
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app
 
-      - name: Setup Dependencies
+      - name: Build IPA
         run: |
-          chmod +x ./get_frameworks.sh ./get_resources.sh
-          ./get_frameworks.sh
-          ./get_resources.sh
+          xcodebuild build -scheme Blink -sdk iphoneos -configuration Release CODE_SIGNING_ALLOWED=NO
+          mkdir -p Payload
+          mv build/Release-iphoneos/Blink.app Payload/
+          zip -r Blink.ipa Payload/
 
-      - name: Build App
-        run: |
-          xcodebuild build \
-            -project Blink.xcodeproj \
-            -scheme Blink \
-            -configuration Debug \
-            -sdk iphoneos \
-            -derivedDataPath ./build_output
-
-      - name: Archive App
-        run: |
-          # This command archives the built application, which is a standard step
-          # for preparing an app. The output will be a .xcarchive file,
-          # which contains the app bundle and debugging symbols.
-          xcodebuild archive \
-            -project Blink.xcodeproj \
-            -scheme Blink \
-            -configuration Debug \
-            -sdk iphoneos \
-            -derivedDataPath ./build_output \
-            -archivePath ./build_output/Blink.xcarchive
-
-      - name: Upload Archive Artifact
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Blink-Archive
-          path: ./build_output/Blink.xcarchive
+          name: Blink-Sideload-IPA
+          path: Blink.ipa
