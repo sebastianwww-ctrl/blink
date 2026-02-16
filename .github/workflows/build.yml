@@ -40,7 +40,7 @@ jobs:
             -allowProvisioningUpdates
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: Blink-Custom-JIT
           path: build/output/*.ipa
