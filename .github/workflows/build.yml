@@ -25,18 +25,19 @@ jobs:
             -scheme Blink \
             -configuration Release \
             -sdk iphoneos \
-            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
-            ENTITLEMENTS_REQUIRED=NO \
             -archivePath $PWD/build/Blink.xcarchive \
             archive
 
       - name: Export IPA
         run: |
+          mkdir -p $PWD/build/output
           xcodebuild -exportArchive \
             -archivePath $PWD/build/Blink.xcarchive \
             -exportOptionsPlist .github/workflows/exportOptions.plist \
-            -exportPath $PWD/build/output
+            -exportPath $PWD/build/output \
+            -allowProvisioningUpdates
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
